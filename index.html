@@ -1,0 +1,484 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0C6A60">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<title>Sintetizador de Exames</title><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+
+
+
+
+<style>
+  /* Layout: coluna única estreita; entrada em cima, resultado embaixo, ações no cabeçalho de cada bloco. */
+  :root {
+    --bg: #F1F5F4;
+    --surface: #FFFFFF;
+    --ink: #13201E;
+    --muted: #55655F;
+    --line: #D3DDDA;
+    --accent: #0C6A60;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #DCEEEA;
+    --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1514;
+      --surface: #151F1E;
+      --ink: #E4EDEB;
+      --muted: #94A7A2;
+      --line: #263733;
+      --accent: #5CC4B5;
+      --accent-ink: #08201C;
+      --accent-soft: #1A3531;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1514;
+    --surface: #151F1E;
+    --ink: #E4EDEB;
+    --muted: #94A7A2;
+    --line: #263733;
+    --accent: #5CC4B5;
+    --accent-ink: #08201C;
+    --accent-soft: #1A3531;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+
+  header { display: flex; flex-direction: column; gap: 6px; }
+  h1 { margin: 0; font-size: 28px; line-height: 1.15; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+  .lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+  section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+  .label { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  button {
+    font: inherit; font-size: 13px; font-weight: 500;
+    padding: 7px 12px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button.primary:hover { filter: brightness(1.08); }
+  button:disabled { opacity: 0.45; cursor: default; filter: none; }
+  button:disabled:hover { border-color: var(--line); }
+  button.primary:disabled:hover { border-color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  textarea#src {
+    width: 100%; min-height: 240px; resize: vertical;
+    font-family: var(--font-data); font-size: 13px; line-height: 1.55;
+    padding: 12px 14px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    white-space: pre; overflow: auto;
+  }
+  textarea#src::placeholder { color: var(--muted); opacity: 0.8; }
+  textarea#src:focus-visible { outline-offset: 0; border-color: var(--accent); }
+
+  #out {
+    min-height: 120px; padding: 14px 16px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface);
+    font-family: var(--font-data); font-size: 15px; line-height: 1.5;
+    display: flex; flex-direction: column; gap: 10px;
+    overflow-x: auto; user-select: text;
+  }
+  #out .ln { white-space: pre-wrap; overflow-wrap: anywhere; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  #out .ln:last-child { border-bottom: 0; padding-bottom: 0; }
+  #out .empty { font-family: var(--font-body); font-size: 14px; color: var(--muted); }
+
+  .meta { margin: 0; font-size: 13px; color: var(--muted); min-height: 1.5em; }
+  .meta b { font-weight: 600; color: var(--ink); }
+  #status { font-size: 13px; color: var(--accent); min-height: 1.5em; }
+  .panel{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px}.panel h3{margin:8px 0 2px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.it{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:4px 0;border-bottom:1px solid var(--line)}.it:last-child{border-bottom:0}.it label{display:flex;gap:8px;align-items:center;font-family:var(--font-data);cursor:pointer}.it small{color:var(--muted);flex-basis:100%;padding-left:26px;overflow-wrap:anywhere}.it.off label span{text-decoration:line-through;opacity:.55}.it select,.it button{font-size:12px;padding:3px 6px}.alert{color:#B3261E;font-weight:600}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;align-items:start}
+  @media (min-width:900px){.cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#l-items{position:static}.cols>section:last-child{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto}}
+  .help{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:13px}.help summary{cursor:pointer;font-weight:600}.help p,.help ul{margin:6px 0}.help ul{padding-left:18px}
+  /* evita que os blocos do painel direito sejam espremidos (e sobrepostos) quando a coluna tem altura limitada */
+  section>*{flex-shrink:0}
+  #review,#alerts,#meta,.panel,.help,.it small,.it code{overflow-wrap:anywhere;word-break:break-word}
+  .actions>.meta{flex:1 1 100%}
+  .cols>section:last-child{gap:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}.chips .lbl{color:var(--muted)}
+  dialog{border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);width:min(760px,94vw);max-height:88vh;padding:0}
+  dialog::backdrop{background:rgba(0,0,0,.45)}
+  .dlg-head{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .dlg-head h3{margin:0;font-size:16px;overflow-wrap:anywhere}
+  .dlg-body{padding:12px 16px 16px;overflow:auto;max-height:calc(88vh - 70px);font-size:14px}
+  .dlg-body table{width:100%;border-collapse:collapse}.dlg-body th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:4px 8px}
+  .dlg-body td{padding:6px 8px;border-top:1px solid var(--line);overflow-wrap:anywhere;vertical-align:top}.dlg-body tr.used td{background:var(--accent-soft)}
+  .dlg-body td.v{font-family:var(--font-data);font-weight:600}.dlg-body .nt{margin:12px 0 0;color:var(--muted);font-size:13px}
+  .foot { margin: 0; font-size: 12.5px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Sintetizador de Exames</h1>
+    <p class="lede">Cole a tabela do laboratório e receba as anotações abreviadas, sem valores de referência nem unidades.</p>
+  </header>
+
+  <section aria-labelledby="l-src">
+    <div class="bar">
+      <h2 class="label" id="l-src">Dados originais</h2>
+      <div class="actions">
+        <button type="button" id="btn-sample">Usar exemplo</button>
+        <button type="button" id="btn-clear">Limpar</button>
+      </div>
+    </div>
+    <textarea id="src" wrap="off" spellcheck="false" autocomplete="off" placeholder="Cole aqui a tabela ou o texto do exame..."></textarea>
+  </section>
+
+  <div class="cols">
+  <section aria-labelledby="l-out">
+    <div class="bar">
+      <h2 class="label" id="l-out">Resultado sintetizado</h2>
+      <div class="actions">
+        <span id="status" role="status" aria-live="polite"></span>
+        <button type="button" class="primary" id="btn-copy" disabled>Copiar resultado</button>
+      </div>
+    </div>
+    <div id="out" aria-live="polite"></div>
+    <div id="full" class="chips" hidden></div>
+    <div id="alerts" class="meta"></div>
+    <p class="meta" id="meta"></p>
+  </section>
+
+  <section aria-labelledby="l-items">
+    <div class="bar">
+      <h2 class="label" id="l-items">Conferir exames (desmarque para tirar do resultado)</h2>
+      <div class="actions"><button type="button" id="btn-restore">Marcar todos</button></div>
+    </div>
+    <details class="help"><summary>Como ensinar o programa</summary>
+      <p>Itens em <b>Fora do padrão ou novos</b> não foram reconhecidos. Cada um tem um menu:</p>
+      <ul>
+        <li><b>Não interessa:</b> “(ignorar sempre)” tira esse exame dos resultados.</li>
+        <li><b>É um exame novo:</b> escolha “+ Cadastrar como novo exame…” e digite a sigla que quer ver no resultado (ex.: PCR). Ele passa a sair como “PCR = valor”, depois dos padronizados.</li>
+        <li><b>É um exame que o programa já conhece, com outro nome:</b> escolha a sigla dele na lista (CR, GLIC, HB…). Se o nome for quase igual a um conhecido, aparece o botão “Parece ser … — aplicar”.</li>
+      </ul>
+      <p>O que você ensina vale só para o nome exato e fica salvo neste navegador. Use Exportar e Importar para levar a outro aparelho.</p></details>
+    <div id="items" class="panel"></div>
+    <div id="bad" class="panel" hidden></div>
+    <div id="review" class="meta" style="white-space:pre-wrap"></div>
+    <div class="actions"><span class="meta" id="learned"></span><button type="button" id="btn-exp">Exportar aprendizados</button><button type="button" id="btn-imp">Importar</button><button type="button" id="btn-forget">Apagar aprendizados</button></div>
+  </section>
+
+  </div>
+
+  <p class="foot">A linha UR1 usa um único prefixo: LEUCO; HMC; N; cilindros quando alterados. Os exames extras ficam após urina e urocultura. Na Urina 1, leucócitos (LEUCO), hemácias (HMC) e nitrito (N) são sempre exibidos quando informados, inclusive negativos, normais, ausentes ou zero. Cilindros aparecem apenas quando presentes/alterados; ausentes, normais ou zero são omitidos. A urocultura é mantida mesmo sem crescimento; o antibiograma lista apenas sensíveis. Sorologias negativas são mantidas. Notas gerais são ignoradas. Tudo é processado offline, sem envio dos dados e sem gravação automática.</p>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <div class="dlg-head"><h3 id="dlg-title"></h3><div class="actions"><button type="button" id="dlg-copy">Copiar exame</button><button type="button" class="primary" id="dlg-close">Fechar</button></div></div>
+  <div class="dlg-body" id="dlg-body"></div>
+</dialog>
+
+<script>
+/* Motor local: mapas compilados uma vez; nenhuma requisição de rede. */
+const up = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+const NEG = new Set(['N','NEGATIVO','NEGATIVA','NEGATIVOS','NEGATIVAS','NORMAL','AUSENTE','AUSENTES','AUSENCIA','INDETECTAVEL','NAO REAGENTE','NAO DETECTADO','NAO DETECTADA','-']);
+const GROUPS = [ ['HB','HT','VCM','HCM','RDW'],['GB','S','L','BAST'],['PLQ'],['FERRITINA','FE','SAT TRANSF','RETIC','PSOF'],['GLIC','HBA1C'],['UR','CR','TFG','NA','K','CA'],['ALB','ALBUMINURIA','AU'],['TGO','TGP','CPK','BT','BD','BI','B'],['CT','HDL','LDL','TGL'],['TSH','T4 LIVRE'],['VIT D','VIT B12','AC. FOLICO'],['PSA'],['UR 1: LEUCO','UR 1: HMC','UR 1: N','@CIL'],['URO'],['EXTRAS'] ];
+const aliases = new Map();
+function normName(s) {return up(s).replace(/^\*+/,'').replace(/\b(SORO|SERICA|SERICO|PLASMA|SANGUE)\b/g,' ').replace(/[.:]/g,' ').replace(/\s+/g,' ').trim();}
+function register(k, names) {names.split('|').forEach(n=>aliases.set(normName(n),k));}
+register('HB','HB|HGB|HEMOGLOBINA|HEMOGLOBIN');
+register('HT','HT|HCT|HEMATOCRITO|HEMATOCRIT');
+register('VCM','VCM|MCV|VOLUME CORPUSCULAR MEDIO');
+register('HCM','HCM|MCH|HEMOGLOBINA CORPUSCULAR MEDIA');
+register('RDW','RDW|RED CELL DISTRIBUTION WIDTH');
+register('GB','GB|WBC|LEUCOCITOS|LEUCOCITOS TOTAIS|WHITE BLOOD CELLS|WHITE BLOOD CELL COUNT|LEUKOCYTES|LEUCOCYTES|GLOBULOS BRANCOS');
+register('S','S|SEGMENTADO|SEGMENTADOS|NEUTROFILOS SEGMENTADOS|SEGMENTED NEUTROPHILS');
+register('L','L|LINFOCITOS|LYMPHOCYTES|LYMPH');
+register('BAST','BAST|BASTONETES|BASTONETE|BANDS');
+register('PLQ','PLQ|PLT|PLAQUETA|PLAQUETAS|PLATELETS|PLATELET COUNT');
+register('FERRITINA','FERRITINA|FERRITIN'); register('FE','FE|FERRO|IRON');
+register('SAT TRANSF','SAT TRANSF|SATURACAO DE TRANSFERRINA|SATURACAO DA TRANSFERRINA|TRANSFERRIN SATURATION|TSAT|IST');
+register('RETIC','RETIC|RETICULOCITOS|RETICULOCITO|RETICULOCYTES');
+register('PSOF','PSOF|PESQUISA DE SANGUE OCULTO NAS FEZES|SANGUE OCULTO|SANGUE OCULTO NAS FEZES|FECAL OCCULT BLOOD');
+register('GLIC','GLIC|GLI|GLU|GLICEMIA|GLICOSE|GLUCOSE|BLOOD GLUCOSE');
+register('HBA1C','HBA1C|A1C|HGL|HEMOGLOBINA GLICADA|HEMOGLOBINA GLICOSILADA|HEMOGLOBINA A1C|GLYCATED HEMOGLOBIN|GLYCOSYLATED HEMOGLOBIN');
+register('UR','UR|URE|UREIA|UREA'); register('CR','CR|CREA|CREATININA|CREATININE');
+register('TFG','TFG|TGF|ETFG|EGFR|TAXA DE FILTRACAO GLOMERULAR|ESTIMATED GLOMERULAR FILTRATION RATE');
+register('NA','NA|SOD|SODIO|SODIUM');register('K','K|POT|POTASSIO|POTASSIUM');register('CA','CA|CALCIO|CALCIUM');
+register('ALB','ALB|ALBUMINA|ALBUMIN');register('ALBUMINURIA','ALBUMINURIA|MICROALBUMINURIA|ALBUMINA URINARIA|URINARY ALBUMIN');register('AU','AU|ACIDO URICO|URIC ACID|URATE');
+register('TGO','TGO|AST|SGOT|TRANSAMINASE OXALACETICA|TRANSAMINASE GLUTAMICO OXALACETICA|ASPARTATO AMINOTRANSFERASE|ASPARTATE AMINOTRANSFERASE');
+register('TGP','TGP|ALT|SGPT|TRANSAMINASE PIRUVICA|TRANSAMINASE GLUTAMICO PIRUVICA|ALANINA AMINOTRANSFERASE|ALANINE AMINOTRANSFERASE');
+register('CPK','CPK|CK|CREATINOQUINASE|CREATINA QUINASE|CREATINOFOSFOQUINASE|CREATINAFOSFOQUINASE|CREATINE KINASE|CREATINE PHOSPHOKINASE');
+register('BT','BT|BILIRRUBINA TOTAL|TOTAL BILIRUBIN');register('BD','BD|BILIRRUBINA DIRETA|DIRECT BILIRUBIN');register('BI','BI|BILIRRUBINA INDIRETA|INDIRECT BILIRUBIN');register('B','B|BILIRRUBINA|BILIRUBIN');
+register('CT','CT|CHOL|COLESTEROL|COLESTEROL TOTAL|TOTAL CHOLESTEROL');register('HDL','HDL|HDL C|COLESTEROL HDL|HDL COLESTEROL|HDL CHOLESTEROL');register('LDL','LDL|LDL C|COLESTEROL LDL|LDL COLESTEROL|LDL CHOLESTEROL');register('TGL','TGL|TG|TRIG|TRIGLICERIDES|TRIGLICERIDEOS|TRIGLYCERIDES');
+register('TSH','TSH|HORMONIO TIREOESTIMULANTE|HORMONIO TIREOESTIMULANTE TSH|THYROTROPIN|TIREOTROPINA|THYROID STIMULATING HORMONE');register('T4 LIVRE','T4 LIVRE|T4L|FT4|TIROXINA LIVRE|FREE T4|FREE THYROXINE');
+register('VIT D','VIT D|VITAMINA D|VITAMIN D');register('VIT B12','VIT B12|B12|VITAMINA B12|VITAMINA B 12|VITAMIN B12|COBALAMIN|COBALAMINA');register('AC. FOLICO','AC FOLICO|ACIDO FOLICO|FOLATO|FOLATE|FOLIC ACID');register('PSA','PSA|ANTIGENO PROSTATICO ESPECIFICO|PROSTATE SPECIFIC ANTIGEN');
+const RULES = [
+ ['IGN',/^(ERITROCITOS|HEMACIAS|RBC|RED BLOOD CELLS|EOSINOFILOS|MONOCITOS|BASOFILOS|CHCM|CONCENTRACAO DE HEMOGLOBINA CORPUSCULAR MEDIA|GLICOSE ESTIMADA|GLICEMIA MEDIA ESTIMADA|ESTIMATED AVERAGE GLUCOSE)\b/],
+ ['ALBUMINURIA',/^(RELACAO ALBUMINA\s*\/\s*CREATININA|ALBUMIN CREATININE RATIO|ACR|RAC)$/],
+ ['TFG',/^(E?TFG|TGF|EGFR)\b|FILTRACAO GLOMERULAR/],
+ ['VIT D',/^(VITD|25[ -]*(OH|HIDROXI)|1[,.]25).*|VITAMINA D/]
+];
+function ruleFor(n){if(aliases.has(n))return aliases.get(n); for(const [k,re] of RULES)if(re.test(n))return k;return null;}
+const NOTE = /^(TIPO LAUDOS? (DEPOIS|ANTES)|NOTAS?\b|REFERENCIA\b|REFERENCIAS\b|BIBLIOGRAFIA\b|INTERVALO DE REFERENCIA|VALORES DE REFERENCIA|HEMOGRAMA COMPLETO|ERITROGRAMA\b|LEUCOGRAMA\b|%\s*\/\s*UL\b|MATERIAL\s*:|METODO\s*:|EQUIPAMENTO\s*:)/;
+
+/* ---------- Formato com faixa de referência na mesma linha ----------
+   "Hemoglobina 11.8 g/dL 12.0 - 16.0 g/dL" | "PLAQUETAS 208 mil/uL 140 - 400 mil/uL" */
+function cleanHTML(s){return s.replace(/<\/?(?:br|span|strong|p|div|b|i)\b[^>]*>/gi,' ').replace(/&(?:nbsp|#160);/gi,' ').replace(/&(?:ecirc|eacute);/gi,'e').replace(/&(?:ccedil);/gi,'c').replace(/&(?:atilde|aacute|agrave|acirc);/gi,'a').replace(/&(?:otilde|oacute|ocirc);/gi,'o').replace(/&iacute;/gi,'i').replace(/&uacute;/gi,'u').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&amp;/gi,'&');}
+const dec = s => String(s).replace('.', ',');
+const milhar = s => { const [i, d] = String(s).split(','); const g = i.replace(/\B(?=(\d{3})+(?!\d))/g, '.'); return d !== undefined ? g + ',' + d : g; };
+const fmtVal = x => x.key === 'GB' || x.key === 'PLQ' ? milhar(x.val) : (x.key === 'S' || x.key === 'L' || x.key === 'BAST') ? x.val + '%' : x.val;
+const NUMRE = '\\d+(?:[.,]\\d+)?';
+const RE_LAB = new RegExp('^([A-Za-zÀ-ÿ][^\\d]*?)\\s+(-?' + NUMRE + ')\\s*([a-zA-Zµ%]+(?:\\/[a-zA-Zµ]+)?|milh\\S*)?' +
+  '(?:\\s+' + NUMRE + '\\s*-\\s*' + NUMRE + '(?:\\s+\\S+)?)?\\s*$');
+
+function parseLabRow(t) {
+  const m = t.match(RE_LAB);
+  if (!m) return null;
+  let value = m[2], unit = m[3] || '';
+  if (/^mil(\/|$)/i.test(unit)) {
+    value = String(Math.round(parseFloat(value.replace(',', '.')) * 1000));
+    unit = '';
+  }
+  return { name: m[1].trim(), value: dec(value), unit };
+}
+
+/* Leucograma: "Segmentados 56.5 3876 40 - 65 1800 - 7000 /uL" (1º número = %)
+              "Leucócitos 6860 100 % 5000 - 10000 / uL"       (1º número = absoluto)
+   Só para os nomes do leucograma; o valor é sempre o 1º número da linha. */
+const LEUCO_NOMES = /^(LEUCOCITOS|SEGMENTADOS|EOSINOFILOS|BASOFILOS|LINFOCITOS|MONOCITOS)$/;
+function parseLeucoRow(t) {
+  const m = t.match(/^([A-Za-zÀ-ÿ][^\d]*?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)(?=.*(?:%|\s-\s|\/\s?uL))/);
+  if (!m) return null;
+  const nome = m[1].trim();
+  if (!LEUCO_NOMES.test(up(nome))) return null;
+  return { name: nome, value: dec(m[2]), unit: '' };
+}
+
+/* Bastonetes: só entra no resultado se saírem da faixa de referência.
+   Mostra a porcentagem.
+   "Bastonetes 0.0 0 0 - 5 0 - 1000 /uL"    -> normal, omitido
+   "Bastonetes 6.0 1200 0 - 5 0 - 1000 /uL" -> altera o absoluto, entra como 6,0 */
+function parseBastonetes(t) {
+  if (!/^BASTONETES\b/.test(up(t))) return null;
+  const nums = t.match(/\d+(?:[.,]\d+)?/g) || [];
+  const faixas = [...t.matchAll(/(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)/g)];
+  if (nums.length < 2 || faixas.length < 2) return { ignore: true };
+  const num = s => parseFloat(s.replace(',', '.'));
+  const pct = num(nums[0]), abs = num(nums[1]);
+  const [pctMin, pctMax] = [num(faixas[0][1]), num(faixas[0][2])];
+  const [absMin, absMax] = [num(faixas[1][1]), num(faixas[1][2])];
+  const alterado = pct < pctMin || pct > pctMax || abs < absMin || abs > absMax;
+  if (!alterado) return { ignore: true };
+  return { name: 'Bastonetes', value: dec(nums[0]), unit: '' };
+}
+
+/* Blastos, mielócitos e linfócitos atípicos: sempre omitidos. */
+const IGN_LEUCO = /^(BLASTOS|MIELOBLASTOS|PRO MIELOCITOS|MIELOCITOS|METAMIELOCITOS|LINFOCITOS ATIPICOS)\b/;
+
+const SAMPLE = 'HMG - HEMOGRAMA\tADV\tIMPRESSO\nHGB\t13,2\t13,2\nWBC\t7000\t7.000\nPLAQUETAS\t220000\t220.000\nGLI - GLICEMIA\tADV\tIMPRESSO\nRESULTADO\t85\t85\nCRE - CREATININA\tADV\tIMPRESSO\nCREATININA\t1,01\t1,01\n*EGFR\t58\t58\nVITD3 - 25 HIDROXI VITAMINA D3\tADV\tIMPRESSO\nVITD3\t42\t42\nTIPO LAUDO DEPOIS\tNOTA: valores acima de 100 ng/mL apresentam risco de toxicidade.\nVDRL\tNÃO REAGENTE\tNÃO REAGENTE\nURI - URINA TIPO I\tADV\tIMPRESSO\nLEUCOCITOS\t12000\t12000\nHEMÁCIAS\t3000\t3000\nNITRITO\t-\tNEGATIVO\nURO - UROCULTURA\tADV\tIMPRESSO\nRESULTADO\tSEM CRESCIMENTO\tSEM CRESCIMENTO';
+
+function sectionOf(s){s=up(s);if(/ANTIBIOGRAMA|\bTSA\b/.test(s))return 'tsa';if(/UROCULTURA|CULTURA DE URINA|URINE CULTURE/.test(s))return 'uro';if(/CULTURA|CULTURE/.test(s))return 'otherCulture';if(/URINA (TIPO )?[I1]\b|\bEAS\b|URINALYSIS|SUMARIO DE URINA|ROTINA DE URINA/.test(s))return 'urina1';return 'geral';}
+function titleOf(s){return s.replace(/^\S+\s+-\s+/,'').trim();}
+function parseLine(raw){
+ let line=cleanHTML(raw.replace(/\r/g,'')),t=line.trim();if(!t)return null;
+ if(NOTE.test(up(t)))return {note:t};
+ if(line.includes('\t')){let c=line.split('\t').map(s=>s.trim());while(c.length&&!c[0])c.shift();if(c.some(x=>up(x)==='IMPRESSO'))return {header:true,title:titleOf(c[0])};if(!c[0])return null;let value=c[2]||c[1]||'';return {name:c[0],value,unit:c[3]||'',rawValue:c[1]||''};}
+ if(IGN_LEUCO.test(up(t)))return {ignore:true};
+ const lab=parseLabRow(t)||parseBastonetes(t)||parseLeucoRow(t);if(lab)return lab;
+ if(/\bIMPRESSO\b/.test(up(t)))return {header:true,title:titleOf(t.split(/\bIMPRESSO\b/i)[0].replace(/\s+\S+\s*$/,''))};
+ if(!/[=;\t]/.test(t)&&(/^[A-Z0-9]+\s+-\s+/.test(up(t))||/^(ANTIBIOGRAMA|URINA TIPO I|UROCULTURA|HEMOGRAMA)$/i.test(t)))return {header:true,title:titleOf(t)};
+ let m=t.match(/^(.+?)\s*=\s*(.+)$/);if(m)return {name:m[1],value:m[2]};
+ m=t.match(/^(.+?)\s+([<>≤≥]?\s*=?\s*-?\d+(?:[.,]\d+)*(?::\d+)?)(?:\s+(.+))?$/);
+ if(m){let val=m[2].replace(/\s+/g,''),rest=m[3]||'',dup=rest.match(/^([<>≤≥]?=?-?\d+(?:[.,]\d+)*(?::\d+)?)(?:\s|$)/);if(dup&&dup[1].replace(/[.,]/g,'')!==val.replace(/[.,]/g,''))return {name:m[1],value:val,unit:rest,conflict:true};return {name:m[1],value:dup?dup[1]:val,unit:rest};}
+ m=t.match(/^(.+?)\s+(NAO REAGENTE|NAO DETECTAD[OA]|SEM CRESCIMENTO|NEGATIV[OA]|NORMAL|AUSENTES?|INCONCLUSIVO|REAGENTE|POSITIV[OA]|SENS[IÍ]VEL|RESISTENTE|INTERMEDI[AÁ]RIO|S|R|I)$/i);if(m)return {name:m[1],value:m[2]};return {unparsed:t};
+}
+function labelFor(key,n,original,unit,title){let label=key;
+ if(key==='ALBUMINURIA'&&/RELACAO|RATIO|^ACR$|^RAC$/.test(n))return 'ALBUMINURIA (relação albumina/creatinina)';
+ if(key==='VIT D'){let context=n+' '+up(title);if(/1[,.]25/.test(context))return 'VIT D (1,25-OH)';if(/25.*(HIDROXI|OH)|CALCIDIOL|VITD3/.test(context))return 'VIT D (25-OH'+(/D3/.test(context)?' D3':'')+')';}
+ if(/\bLIVRE\b|\bFREE\b/.test(n)&&key==='PSA')label+=' LIVRE';
+ if(/\bTOTAL\b/.test(n)&&['PSA','CA','CPK'].includes(key))label+=' TOTAL';
+ if(/IONIZ/.test(n)&&key==='CA')label+=' IONIZADO';
+ if(/RDW[ -]?(CV|SD)/.test(n))label=n;
+ return label;
+}
+function synthesizeBlock(text){
+ const bad=[],buckets=new Map(),seen=new Set(),labelValues=new Map(),warningSet=new Set(),warnings=[],alerts=[],stats={neg:0,removed:0,ur1:0,tsa:0,control:0,kept:0};let section='geral',title='',organism='',curRaw='',curName='',curRow=null,curExam=null;const exams=[];
+ function warn(s){if(!warningSet.has(s)){warningSet.add(s);warnings.push(s);}}
+ function add(key,label,val){if(curRow)curRow.used=true;const fingerprint=section+'|'+title+'|'+label+'|'+val;if(seen.has(fingerprint))return;seen.add(fingerprint);if(!buckets.has(key))buckets.set(key,[]);let a=buckets.get(key);const prior=labelValues.get(label);if(prior!==undefined&&prior!==val)warn('Resultados distintos para '+label+': ambos foram mantidos; confira coleta, amostra e modalidade.');labelValues.set(label,val);a.push({label,val,key,raw:curRaw,name:curName,id:key+'|'+label+'|'+val});stats.kept++;}
+ for(const raw of text.split('\n')){try{curRaw=raw.trim();curName='';curRow=null;
+  const p=parseLine(raw);if(!p)continue;
+  if(p.ignore){stats.removed++;continue;}
+  if(p.note){if(curExam)curExam.notes.push(p.note);stats.control++;if(/RESULTADO (DO PACIENTE )?.{0,35}CRITICO|VALOR CRITICO DO PACIENTE/.test(up(p.note)))alerts.push(p.note);continue;}
+  if(p.header){title=p.title;section=sectionOf(title);if(section==='uro')organism='';curExam={title:p.title||title,section,rows:[],notes:[]};exams.push(curExam);continue;}
+  if(p.unparsed){bad.push(p.unparsed);warn('Linha não reconhecida: '+p.unparsed.slice(0,140));continue;}
+  let n=normName(p.name),value=p.value.trim();curName=n;if(!n||!value)continue;
+  if(/^(FLAG|CHECK|LIBERA|TIPO LAUDO)/.test(n)){stats.control++;continue;}
+  if(!curExam){curExam={title:'Sem título',section,rows:[],notes:[]};exams.push(curExam);}
+  curRow={name:(/^RESULTADO\s*\d*$/.test(n)&&title)?title:p.name.replace(/[:\s]+$/,''),value:value,unit:p.unit||'',used:false};curExam.rows.push(curRow);
+  if(p.conflict)warn('Colunas divergentes em '+p.name+': confira o resultado atual.');
+  if(/\bCRITICO\b/.test(up(value)))alerts.push(p.name+' = '+value);
+  if(/^RESULTADO\s*\d*$/.test(n)&&title)n=normName(title);
+  let clean=p.name.replace(/[:\s]+$/,'');if(/^RESULTADO\s*\d*$/.test(normName(clean)))clean=title||clean;
+  if(section==='tsa'){
+   const v=up(value);if(/^(R|I|RESISTENTE|NAO SENSIVEL|INTERMEDIARIO)$/.test(v)){stats.tsa++;continue;}
+   if(/^SENSIVEL(?:,? AUMENTANDO EXPOSICAO)?$/.test(v)||v==='S'){
+    if(/ANTIBIOGRAMA|^TSA$/.test(n)){warn('Antibiograma codificado sem nome inequívoco do antibiótico: conferir o laudo.');continue;}
+    add('URO','Antibiograma'+(organism?' ('+organism+')':'')+': '+clean,v==='S'?'SENSÍVEL':value);if(v==='S')warn('Antibiograma: confirme na legenda do laboratório que S significa sensível.');
+   }else {stats.tsa++;warn('Linha de antibiograma sem classificação de sensibilidade inequívoca: '+clean);}
+   continue;
+  }
+  if(section==='urina1'){
+   let k=/^(LEUCOCITOS|WBC|WHITE BLOOD CELLS|LEUKOCYTES)$/.test(n)?'UR 1: LEUCO':/^(HEMACIAS|ERITROCITOS|RBC|RED BLOOD CELLS)$/.test(n)?'UR 1: HMC':/^(NITRITO|NITRITOS|NITRITE|NITRITES)$/.test(n)?'UR 1: N':/^(CILINDRO|CILINDROS|URINARY CASTS|CASTS)\b/.test(n)?'@CIL':null;
+   if(!k){if(/^(HEMAC|LEUC)$/.test(n))warn('Urina 1: linha abreviada '+p.name+' não usada como duplicata ou conversão; confira a linha de contagem por extenso.');stats.ur1++;continue;}
+   if(k==='@CIL'&&(NEG.has(up(value))||/^0+(?:[.,]0+)?$/.test(value))){stats.neg++;continue;}add(k,k==='@CIL'?'@CIL'+(n.replace(/^(CILINDROS?|URINARY CASTS|CASTS)\s*/,'')?' ('+n.replace(/^(CILINDROS?|URINARY CASTS|CASTS)\s*/,'')+')':''):k,value);continue;
+  }
+  if(section==='uro'){if(!NEG.has(up(value))&&!/SEM CRESCIMENTO/.test(up(value))&&!/CONT|COLONIA/.test(n))organism=value;add('URO',/CONT|COLONIA/.test(n)?'URO (contagem)':'URO',value);continue;}
+  if(section==='otherCulture'){add('EXTRAS',clean+' ('+title+')',value);continue;}
+  let key=ruleFor(n);
+  if(!key){let base=n.replace(/\s*\([^)]*\)/g,'').replace(/[-]/g,' ').replace(/\b(TOTAL|LIVRE|FREE|IONIZADO|IONIZADA|PERCENTUAL|ABSOLUTO|ABSOLUTOS|RELATIVO)\b/g,'').replace(/\s+/g,' ').trim();key=ruleFor(base);if(/URINAR/.test(n)&&key==='CR')key=null;}
+  if(key==='IGN'){stats.removed++;continue;}
+  if(key==='TFG'){let m=value.match(/^([<>≤≥]\s*=?\s*)?([0-9]+)(?:[.,][0-9]+)?(?:\s.*)?$/);if(m)value=(m[1]||'').replace(/\s/g,'')+m[2];else warn('TFG não truncada: formato não reconhecido.');}
+  if(!key){add('EXTRAS',clean,value);continue;}add(key,labelFor(key,n,clean,p.unit||'',title),value);
+ }catch(e){bad.push(raw.trim());warn('Erro ao processar a linha: '+raw.trim().slice(0,100));}}
+ return {buckets,stats,warnings,alerts,bad,exams};
+}
+
+function synthesize(text){
+ const chunks=[];let heading='',rows=[];
+ for(const line of text.split('\n')){
+  if(/^(?:COLETA|DATA(?: DA COLETA)?|LIBERACAO|PACIENTE)\s*[: ]/i.test(up(line))){
+   if(rows.some(x=>x.trim()))chunks.push({heading,rows});
+   heading=line.trim();rows=[];
+  }else rows.push(line);
+ }
+ if(rows.some(x=>x.trim()))chunks.push({heading,rows});
+ const out={chunks:[],exams:[],warnings:[],alerts:[],bad:[],stats:{neg:0,removed:0,ur1:0,tsa:0,control:0,kept:0}};
+ chunks.forEach((c,ci)=>{try{const r=synthesizeBlock(c.rows.join('\n'));
+  for(const[k,a]of r.buckets)for(const x of a)x.id=ci+'#'+x.id;
+  out.chunks.push({heading:c.heading,buckets:r.buckets});out.exams.push(...r.exams.map(e=>Object.assign({heading:c.heading},e)));out.warnings.push(...r.warnings);out.alerts.push(...r.alerts);out.bad.push(...r.bad);for(const k in out.stats)out.stats[k]+=r.stats[k];
+ }catch(e){out.bad.push(...c.rows.filter(x=>x.trim()));out.warnings.push('Bloco inteiro não processado ('+(c.heading||'sem data')+'): '+e.message);}});
+ out.warnings=[...new Set(out.warnings)];out.alerts=[...new Set(out.alerts)];out.bad=[...new Set(out.bad)];return out;
+}
+/* Monta o texto final ignorando os itens removidos; extras saem um por linha, depois dos padronizados. */
+function layout(res,removed){
+ const lines=[];
+ for(const c of res.chunks){const L=[];
+  for(const group of GROUPS){if(group[0]==='EXTRAS')continue;let items=[];const urine=group[0]==='UR 1: LEUCO';
+   for(const key of group)for(const x of c.buckets.get(key)||[])if(!removed.has(x.id))items.push((urine?x.label.replace(/^UR 1: /,''):x.label)+' = '+fmtVal(x));
+   if(urine){if(items.length)L.push('UR1: '+items.join('; '));}else for(let i=0;i<items.length;i+=8)L.push(items.slice(i,i+8).join('; '));}
+  for(const x of c.buckets.get('EXTRAS')||[])if(!removed.has(x.id))L.push(x.label+' = '+x.val);
+  if(c.heading&&L.length)lines.push(c.heading);lines.push(...L);}
+ return lines;
+}
+function allItems(res){const o=[];for(const c of res.chunks)for(const group of GROUPS)for(const key of group)for(const x of c.buckets.get(key)||[])o.push(x);return o;}
+/* Aprendizado: só correspondência exata do nome normalizado (nada de "chute" automático). */
+const CUSTOM=[];GROUPS.splice(GROUPS.length-1,0,CUSTOM); /* exames cadastrados pelo usuário: saem após urina/urocultura, antes dos extras */
+const RESERVED=/^(UR 1|@CIL|URO|EXTRAS|IGN|__)/i;
+function keys(){return GROUPS.flat().filter(k=>!/^(UR 1|@CIL|URO|EXTRAS)/.test(k));}
+function loadCustom(){try{const c=JSON.parse(localStorage.getItem('sint_custom')||'[]');return Array.isArray(c)?c.filter(k=>typeof k==='string'&&k&&k.length<=24&&!RESERVED.test(k)):[];}catch(e){return [];}}
+function saveCustom(c){try{localStorage.setItem('sint_custom',JSON.stringify(c));return true;}catch(e){return false;}}
+function loadLearned(){try{return JSON.parse(localStorage.getItem('sint_aliases')||'{}');}catch(e){return {};}}
+function saveLearned(o){try{localStorage.setItem('sint_aliases',JSON.stringify(o));return true;}catch(e){return false;}}
+function applyLearned(){for(const c of loadCustom())if(!keys().includes(c))CUSTOM.push(c);const o=loadLearned();for(const k in o)if(typeof o[k]==='string'&&(o[k]==='IGN'||keys().includes(o[k])))aliases.set(k,o[k]);}
+function lev(a,b){const d=[];for(let i=0;i<=a.length;i++){d[i]=[i];}for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length];}
+function suggest(name){if(!name||name.length<4)return null;let best=null,bd=99;const lim=name.length>=9?2:1;for(const[a,k]of aliases){if(k==='IGN'||a.length<4)continue;const dd=lev(name,a);if(dd<=lim&&dd<bd){bd=dd;best=k;}}return best;}
+applyLearned();
+
+/* ---------- Interface ---------- */
+(function () {
+  if (typeof document === 'undefined') return;
+  var $ = function (id) { return document.getElementById(id); };
+  var src=$('src'),out=$('out'),meta=$('meta'),copyBtn=$('btn-copy'),status=$('status'),itemsEl=$('items'),badEl=$('bad');
+  var current=[],res=null,removed=new Set(),statusTimer=null,renderTimer;
+  function say(m){status.textContent=m;clearTimeout(statusTimer);statusTimer=setTimeout(function(){status.textContent='';},2600);}
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function note(st){var p=[];
+    if(st.tsa)p.push(st.tsa+' linhas de antibiograma sem sensibilidade selecionada');
+    if(st.neg)p.push(st.neg+' resultado(s) negativo(s) ou ausente(s)');
+    if(st.removed)p.push(st.removed+' item(ns) removido(s) pela regra');
+    if(st.ur1)p.push(st.ur1+' item(ns) da Urina 1 fora de LEUCO, HMC, N e cilindros');
+    if(st.control)p.push(st.control+' linha(s) de controle ou nota do laudo');
+    return p.length?'<b>Não incluídos:</b> '+p.join(' · '):'';}
+  function row(x,extra){var off=removed.has(x.id);
+    var h='<div class="it'+(off?' off':'')+'"><label><input type="checkbox" data-id="'+esc(x.id)+'"'+(off?'':' checked')+'><span>'+esc(x.label+' = '+x.val)+'</span></label>';
+    if(extra){var sg=suggest(x.name);
+      if(sg)h+='<button type="button" data-learn="'+esc(x.name)+'" data-key="'+esc(sg)+'">Parece ser '+esc(sg)+' — aplicar</button>';
+      h+='<select data-name="'+esc(x.name)+'"><option value="">O que fazer com este exame…</option><option value="IGN">(ignorar sempre)</option><option value="__NEW__">+ Cadastrar como novo exame…</option><option value="" disabled>— ou é o exame: —</option>'+keys().map(function(k){return '<option>'+esc(k)+'</option>';}).join('')+'</select>';}
+    return h+'<small>linha original: '+esc(x.raw)+'</small></div>';}
+  function render(){
+    var text=src.value;out.textContent='';
+    if(!text.trim()){res=null;current=[];out.innerHTML='<div class="empty">Cole os dados acima e as anotações aparecem aqui.</div>';meta.innerHTML='';itemsEl.innerHTML='';badEl.hidden=true;$('alerts').textContent='';$('review').textContent='';copyBtn.disabled=true;return;}
+    try{res=synthesize(text);}catch(e){res=null;current=[];out.innerHTML='<div class="empty">Não foi possível processar este texto ('+esc(e.message)+'). O texto original não foi alterado.</div>';copyBtn.disabled=true;return;}
+    paint();}
+  function paint(){
+    current=layout(res,removed);
+    out.innerHTML=current.length?current.map(function(l){return '<div class="ln">'+esc(l)+'</div>';}).join(''):'<div class="empty">Nenhum exame no resultado.</div>';
+    var all=allItems(res),std=all.filter(function(x){return x.key!=='EXTRAS';}),ext=all.filter(function(x){return x.key==='EXTRAS';});
+    itemsEl.innerHTML=(ext.length?'<h3>Fora do padrão ou novos ('+ext.length+') — um por linha</h3>'+ext.map(function(x){return row(x,true);}).join(''):'')+(std.length?'<h3>Padronizados ('+std.length+')</h3>'+std.map(function(x){return row(x,false);}).join(''):'');
+    var fl=$('full'),fx=res.exams.map(function(e,i){return {e:e,i:i};}).filter(function(o){return o.e.rows.some(function(r){return !r.used;});});
+    fl.hidden=!fx.length;fl.innerHTML=fx.length?'<span class="lbl">Ver exame completo:</span>'+fx.map(function(o){return '<button type="button" data-exam="'+o.i+'">'+esc(o.e.title.slice(0,40))+(o.e.heading?' <small>('+esc(o.e.heading.slice(0,24))+')</small>':'')+'</button>';}).join(''):'';
+    badEl.hidden=!res.bad.length;
+    badEl.innerHTML=res.bad.length?'<h3>Linhas não reconhecidas (não entram no resultado — escreva à mão)</h3>'+res.bad.map(function(b){return '<div class="it"><code>'+esc(b)+'</code></div>';}).join(''):'';
+    meta.innerHTML=note(res.stats);
+    $('alerts').innerHTML=res.alerts.length?'<span class="alert">Alertas do laudo:</span>\n'+res.alerts.map(esc).join('<br>'):'';
+    $('review').textContent=res.warnings.length?'Pendências:\n'+res.warnings.join('\n'):'';
+    var n=Object.keys(loadLearned()).length;$('learned').textContent=n+' aprendizado(s) salvo(s) neste navegador';
+    copyBtn.disabled=!current.length;}
+  async function copy(){
+    if(!current.length)return;var text=current.join('\n');
+    try{await navigator.clipboard.writeText(text);say('Copiado');}
+    catch(e){var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy');}catch(i){}ta.remove();say(ok?'Copiado':'Não foi possível copiar; selecione o texto manualmente');}}
+  function newExam(name){
+    var sg=prompt('Sigla para este exame (como deve aparecer no resultado):',name);
+    if(sg===null){render();return;}sg=sg.trim();
+    if(!sg||sg.length>24||RESERVED.test(sg)){say('Sigla inválida');render();return;}
+    var ex=keys().find(function(k){return k.toLowerCase()===sg.toLowerCase();}),key=ex||sg;
+    if(!ex){var c=loadCustom();c.push(key);saveCustom(c);CUSTOM.push(key);}
+    var o=loadLearned();o[name]=key;o[normName(key)]=key;saveLearned(o);aliases.set(name,key);aliases.set(normName(key),key);render();say(ex?'Já existia: usando '+key:'Exame cadastrado: '+key);}
+  var dlg=$('dlg'),dlgText='';
+  function openExam(i){var e=res&&res.exams[i];if(!e)return;
+    $('dlg-title').textContent=e.title+(e.heading?' — '+e.heading:'');
+    var u=e.rows.filter(function(r){return r.used;}).length;
+    $('dlg-body').innerHTML='<p class="meta">'+u+' de '+e.rows.length+' itens entram no resumo (destacados com ✓).</p><table><thead><tr><th>Exame</th><th>Resultado</th><th>Unidade</th><th>Resumo</th></tr></thead><tbody>'+e.rows.map(function(r){return '<tr'+(r.used?' class="used"':'')+'><td>'+esc(r.name)+'</td><td class="v">'+esc(r.value)+'</td><td>'+esc(r.unit)+'</td><td>'+(r.used?'✓':'—')+'</td></tr>';}).join('')+'</tbody></table>'+(e.notes.length?'<p class="nt"><b>Notas do laudo:</b><br>'+e.notes.map(esc).join('<br>')+'</p>':'');
+    dlgText=e.title+(e.heading?' — '+e.heading:'')+'\n'+e.rows.map(function(r){return r.name+': '+r.value+(r.unit?' '+r.unit:'');}).join('\n')+(e.notes.length?'\n\n'+e.notes.join('\n'):'');
+    if(typeof dlg.showModal==='function')dlg.showModal();else dlg.setAttribute('open','');}
+  function closeExam(){if(typeof dlg.close==='function')dlg.close();else dlg.removeAttribute('open');}
+  $('full').addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-exam]');if(b)openExam(+b.dataset.exam);});
+  $('dlg-close').addEventListener('click',closeExam);
+  dlg.addEventListener('click',function(e){if(e.target===dlg)closeExam();});
+  $('dlg-copy').addEventListener('click',async function(){try{await navigator.clipboard.writeText(dlgText);say('Exame copiado');}catch(e){say('Não foi possível copiar');}});
+  function learn(name,key){var o=loadLearned();o[name]=key;if(!saveLearned(o)){say('Não foi possível salvar neste navegador');}aliases.set(name,key);render();}
+  itemsEl.addEventListener('change',function(e){var t=e.target;
+    if(t.dataset.id!==undefined){if(t.checked)removed.delete(t.dataset.id);else removed.add(t.dataset.id);paint();}
+    else if(t.dataset.name!==undefined&&t.value){if(t.value==='__NEW__')newExam(t.dataset.name);else learn(t.dataset.name,t.value);}});
+  itemsEl.addEventListener('click',function(e){var t=e.target;if(t.dataset&&t.dataset.learn)learn(t.dataset.learn,t.dataset.key);});
+  $('btn-restore').addEventListener('click',function(){removed.clear();if(res)paint();});
+  $('btn-exp').addEventListener('click',async function(){var j=JSON.stringify({a:loadLearned(),c:loadCustom()});try{await navigator.clipboard.writeText(j);say('Aprendizados copiados');}catch(e){prompt('Copie:',j);}});
+  $('btn-imp').addEventListener('click',function(){var j=prompt('Cole o JSON exportado:');if(!j)return;try{var o=JSON.parse(j),a=(o&&o.a&&typeof o.a==='object')?o.a:o,c=Array.isArray(o&&o.c)?o.c:[],cc=loadCustom();c.forEach(function(k){if(typeof k==='string'&&k&&k.length<=24&&!RESERVED.test(k)&&cc.indexOf(k)<0)cc.push(k);});saveCustom(cc);var cur=loadLearned();for(var k in a)if(typeof a[k]==='string')cur[normName(k)]=a[k];saveLearned(cur);applyLearned();render();say('Importado');}catch(e){say('JSON inválido');}});
+  $('btn-forget').addEventListener('click',function(){if(!confirm('Apagar todos os aprendizados? Será preciso recarregar a página.'))return;saveLearned({});saveCustom([]);location.reload();});
+  src.addEventListener('input',function(){clearTimeout(renderTimer);removed.clear();copyBtn.disabled=true;renderTimer=setTimeout(render,150);});
+  copyBtn.addEventListener('click',copy);
+  $('btn-clear').addEventListener('click',function(){src.value='';removed.clear();render();src.focus();});
+  $('btn-sample').addEventListener('click',function(){src.value=SAMPLE;removed.clear();render();say('Exemplo carregado');});
+  render();
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body></html>
